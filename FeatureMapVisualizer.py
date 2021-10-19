@@ -1,3 +1,22 @@
+class SaveFeatures():
+    ''' Save Forward Progapation Activations of Feature Maps of a requested module (=layer)'''
+    def __init__(self, module):
+        self.hook = module.register_forward_hook(self.hook_fn)
+        self.features = None
+        self.params = None
+
+    def hook_fn(self, module, input, output):
+        ''' Save output of the requested layer (module) to self.features '''
+        self.features = output 
+        for p in module.parameters():
+          if len(p.shape)==4:
+            self.params = p
+            break
+
+    def close(self):
+        self.hook.remove()
+       
+
 class FeatureMapVisualizer():
     def __init__(self, 
                  model,  
@@ -30,18 +49,83 @@ class FeatureMapVisualizer():
             else:
                 activations = SaveFeatures(self.model.layer4[layer])
         return activations
+    
+
+    def find_unique_filters(self, 
+                            layer, 
+                            train_dir, 
+                            classes, 
+                            n_imgs_dict, 
+                            n1=25, 
+                            n2=25):
+        '''
+        || PARAMETERS ||
+          layer       : (int) if using last convolutional layer, use -2 for resnet & 12 for vgg16
+          train_dir   : (str) address of the folder that contains training data including "/" at the end  e.g. "train_data/"
+          classes     : (list of strs) list containing (at least two) class names in string e.g. ["cat", "dog"]
+          n_imgs_dict : (dict) key : class name (str), value : # of training images for that class (int) e.g. {"dog":955, "cat":1857}
+          n1          : (int) # of top feature maps to save for EACH IMAGE
+          n2          : (int) # of top feature maps to save for EACH CLASS
+          ec          : (bool) True if using encoder, False if using the whole model (encoder + classifier)
+        '''
+
+        cls_dirs = [train_dir + cls for cls in classes]
+        top_feature_maps_dict_each_image = {}  # dict to save top feature maps for ALL images for each class
+        n_maps_last_layer = 2048 if self.model_type=="resnet" else 512
+
+        ##########  Top Feature maps for EACH IMAGE  ##########
+        for dir in cls_dirs: # iterate over class
+          top_filters = []  
+
+          ### for EACH IMAGE of the class ###
+          for img_path in os.listdir(dir): 
+            ### Save activations of ALL feature maps for the image ###
+            activations_list = self.one_image(layer, os.path.join(dir, img_path), plot=False, print_logits=False)
+            
+            ### Add top n1 most activated feature maps of the image to the "top filters" list ###
+            top_filters.extend(list(activations_list.detach().cpu().numpy().argsort()[::-1][:n1]))
+          cls = dir.split("/")[-1]  # class name
+
+          ### Add the aggregated list of the class to the dict ###
+          top_feature_maps_dict_each_image[cls] = top_filters
+          print(cls + " done.")
+
+        ##########  Top Feature maps for EACH CLASS  ##########
+        top_feature_map_dict_each_class = {}  # dict to save top feature maps for each class
+        for cls in classes:
+          ### Count the feature maps appearing in each class's aggregated list of top feature maps for ALL images ###
+          frequency_counters = Counter(top_feature_maps_dict_each_image[cls])
+
+          ### Calculate the frequency ratio for each feature map
+          frequency_ratios = [frequency_counters[i]/n_imgs_dict[cls] if i in frequency_counters.keys() else 0. for i in range(n_maps_last_layer)]
+
+          ### Add top n2 most frequent feature maps of the class to the dict ###
+          top_feature_map_dict_each_class[cls] = np.argsort(frequency_ratios)[::-1][:n2]
+
+        ###  Eliminate feature maps that exist in more than one classes' top feature map lists  ###
+        unique_top_feature_map_dict_each_class = {}
+        for cls in classes:
+          dict_without_this_class = {key:list(val) for key, val in top_feature_map_dict_each_class.items() if key != cls}
+          if len(classes) > 2:  
+            unique_top_feature_map_dict_each_class[cls] = [map for map in top_feature_map_dict_each_class[cls] if map not in set(sum(dict_without_this_class.values(), []))]
+          elif len(classes) == 2:  
+            unique_top_feature_map_dict_each_class[cls] = [map for map in top_feature_map_dict_each_class[cls] if map not in list(dict_without_this_class.values())[0]]
+
+        print("# of top feature maps:", {key:len(val) for key, val in unique_top_feature_map_dict_each_class.items()})
+
+        return  unique_top_feature_map_dict_each_class
 
 
-    def visualize(self, 
-                  layer,  
-                  filter_n, 
-                  init_size=33, 
-                  lr=0.2, 
-                  opt_steps=20,  
-                  upscaling_steps=20, 
-                  upscaling_factor=1.2, 
-                  print_loss=False, 
-                  plot=False):
+    def visualize_patterns(self, 
+                          layer,  
+                          filter_n, 
+                          init_size=33, 
+                          lr=0.2, 
+                          opt_steps=20,  
+                          upscaling_steps=20, 
+                          upscaling_factor=1.2, 
+                          print_loss=False, 
+                          plot=False):
         ''' 
         ###  VISUALIZATION #1 :  ###
           Visualize patterns captured by a single feature map
@@ -178,7 +262,7 @@ class FeatureMapVisualizer():
         ### Pass the image through the model ###
         logits = self.model(img_var)
 
-        ### Save the activations of the feature maps ###
+        ### Save the activations of ALL feature maps in the requested convolutional layer ###
         activations_list = activations.features[0].mean((1,2)).detach().cpu()
 
         ### Save only the top N most activated feature maps, in order of largest to smallest activations ###
@@ -237,6 +321,7 @@ class FeatureMapVisualizer():
             plt.ylabel("mean activation")
             plt.show()
         
+        ### Return the activations of ALL feature maps in the requested convolutional layer ###
         return activations_list
 
 
@@ -408,3 +493,59 @@ class FeatureMapVisualizer():
             plt.show()
 
         return mean_activations_list
+
+
+    def plot_sum_of_top_feature_maps(self,
+                                     layer, 
+                                     transform, 
+                                     img_dir, 
+                                     top_feature_maps_dict, 
+                                     plot=True):
+        '''
+        ### Visualization #5 ###
+          Plot SUM of activations of each class's top feature maps 
+          for each image of all classes in the same plot
+          || PARAMETERS ||
+            layer     : (int) if using last convolutional layer, use -2 for resnet & 12 for vgg16
+            transform : (torchvision.transforms object)
+            img_dir   : (str) address of the folder containing image folders
+                        *image folders' names must be the same as target class names 
+            top_feature_maps_dict : (dict) (key, value)=(class name, list of top feature maps for that class)
+                                    e.g. {"cat":[1,3,5], "dog":[2,4,8]}
+            plot      : (bool) show plots if True
+        '''
+
+        sum_dicts_dict = {}  # will become a dict of dicts
+        classes = os.listdir(img_dir)
+        for cls_i, cls in enumerate(classes):
+          sum_lists_dict = {_cls:[] for _cls in top_feature_maps_dict.keys()}   
+          
+          for img_path in os.listdir(os.path.join(img_dir, cls)):
+            # read in the image and transform it into a torch tensor
+            full_img_path = os.path.join(img_dir, cls, img_path)
+            img = Image.open(full_img_path).convert('RGB')     
+            img_var = transform(img)[:3, :, :].unsqueeze(0).cuda()
+
+            # compute the activations of all feature maps for the image
+            activations_list = self.one_image(layer, img_path=full_img_path, plot=False)
+
+            # save the sum of only the class top feature maps' activations for each class
+            for top_feature_map_cls in top_feature_maps_dict.keys():
+              sum_lists_dict[top_feature_map_cls].append(sum(activations_list[top_feature_maps_dict[top_feature_map_cls]]))
+
+          for top_feature_map_cls in top_feature_maps_dict.keys():
+            sum_dicts_dict[cls] = sum_lists_dict
+
+        if plot:
+          colours = ["blue", "pink", "red"] # add more colours if you have more than 3 classes
+          assert len(classes)==len(colours), "# of classes and # of colours must be the same!"
+          c = {cls:colour for cls, colour in zip(classes, colours)}
+          for top_feature_map_cls in top_feature_maps_dict.keys():
+            plt.figure(figsize=(10,7))
+            for cls in classes:
+              plt.plot(sum_dicts_dict[cls][top_feature_map_cls], marker=".", color=c[cls])
+            plt.title(top_feature_map_cls+" activations")
+            plt.legend(classes)
+            plt.show()
+
+        return sum_dicts_dict
