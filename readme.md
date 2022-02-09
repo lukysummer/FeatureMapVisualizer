@@ -1,5 +1,7 @@
 # Decoding Black Box of CNNs using Feature Map Visualizations
 Visualizations using individual feature maps of CNN-based image classification models to get insights about their predictions
+
+
 Example- Visualizing particular shapes captured by a last layer feature map whose activation is maximized for images belonging to the class, which helps us understand which visual characteristics of each class were learned by the model :
 
 
