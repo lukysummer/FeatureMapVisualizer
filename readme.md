@@ -1,5 +1,5 @@
 # Decoding Black Box of CNNs using Feature Map Visualizations
-How can we ask CNN architectures useful questions to get insights about their behaviours?
+Visualizations using individual feature maps of CNN-based image classification models to get insights about their predictions
 
 You can see :
 
