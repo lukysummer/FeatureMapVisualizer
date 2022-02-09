@@ -1,7 +1,7 @@
 # Decoding Black Box of CNNs using Feature Map Visualizations
 Visualizations using individual feature maps of CNN-based image classification models to get insights about their predictions
 
-<p align="center"><img src="imagers/optimized_imgs.png" height = "200"></p>
+<p align="center"><img src="images/optimized_imgs.png" height = "200"></p>
 
 You can find :
 
