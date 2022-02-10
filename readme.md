@@ -5,7 +5,7 @@ Visualizations using individual feature maps of CNN-based image classification m
 Ex) Visualizing particular shapes captured by a last layer feature map whose activation is maximized for images belonging to the class, which helps us understand which visual characteristics of each class were learned by the model :
 
 
-<p align="center"><img src="images/optimized_imgs.png" height = "300"></p>
+<p align="center"><img src="images/optimized_imgs.png" height = "200"></p>
 
 You can find :
 
