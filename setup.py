@@ -42,4 +42,5 @@ setup(
         "image recognition", 
 	"computer vision",
         "CNN"],
+    download_url = "https://github.com/lukysummer/FeatureMapVisualizer/archive/refs/tags/v1.0.0.tar.gz"
 )
