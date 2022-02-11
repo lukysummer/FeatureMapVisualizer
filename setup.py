@@ -9,7 +9,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name = "FeatureMapVisualizer",
-    version="1.0.2",
+    version="1.0.3",
     description = "CNN Feature Map Visualizations",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -42,5 +42,5 @@ setup(
         "image recognition", 
 	"computer vision",
         "CNN"],
-    download_url = "https://github.com/lukysummer/FeatureMapVisualizer/archive/refs/tags/v1.0.2.tar.gz"
+    download_url = "https://github.com/lukysummer/FeatureMapVisualizer/archive/refs/tags/v1.0.3.tar.gz"
 )
