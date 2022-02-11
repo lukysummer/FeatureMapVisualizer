@@ -1,6 +1,3 @@
-from .save_features import SaveFeatures
-       
-
 class FeatureMapVisualizer():
     def __init__(self, 
                  model,  
@@ -9,6 +6,7 @@ class FeatureMapVisualizer():
         '''
         ### Feature Map Visualization class:  ###
           Contains various functions for visualization methods using convolutional feature maps
+
           || PARAMETERS ||
             model       : (PyTorch model)
             model_type  : (str) must be "resnet" or "vgg"
@@ -43,6 +41,10 @@ class FeatureMapVisualizer():
                             n_each_img=25, 
                             n_each_class=25):
         '''
+        Find indices of feature maps that are activated the most when the model 
+        sees images of a particular class, so we can focus on those feature maps 
+        when visualizing.
+        
         || PARAMETERS ||
           layer        : (int) if using last convolutional layer, use -2 for resnet & 12 for vgg16
           train_dir    : (str) address of the folder that contains training data including "/" at the end  e.g. "train_data/"
@@ -108,7 +110,7 @@ class FeatureMapVisualizer():
                           upscaling_steps=20, 
                           upscaling_factor=1.2, 
                           print_loss=False, 
-                          plot=True):
+                          plot=False):
         ''' 
         ###  VISUALIZATION #1 :  ###
           Visualize patterns captured by a single feature map
@@ -122,7 +124,7 @@ class FeatureMapVisualizer():
             opt_steps        : (int) number of optimization steps
             upscaling_steps  : (int) # of upscaling steps
             upscaling_factor : (float) >1, upscale factor
-            log_info         : (bool) if True, log info at each optimizing iteration
+            print_loss       : (bool) if True, log info at each optimizing iteration
                                *if activation: 0 for all iterations, there's a problem
             plot             : (bool) if True, plot the generated image at each optimizing iteration
         '''
@@ -313,14 +315,14 @@ class FeatureMapVisualizer():
                                 dataloader,  
                                 filter_idx,  
                                 plot=True, 
-                                plot_all=False, 
+                                max_n_imgs_to_plot=100, 
                                 plot_overlay=True, 
                                 normalize=True,
                                 folder="", 
                                 class_name=""):
         '''
         ###  VISUALIZATION #3 :  ###
-          Given the indice of the feature map to investigate (filter_idx), 
+          Given the index of the feature map to investigate (filter_idx), 
           plot its activation map for images in the dataloader.
 
         || PARAMETERS ||
@@ -329,12 +331,11 @@ class FeatureMapVisualizer():
           dataloader   : (torch.utils.data.dataloader object) dataloader containing images to plot (usually images of a single class)
           filter_idx   : (int) index of the feature map to investigate in the layer
           plot         : (bool) if True, plot the feature maps' activation maps on images in the dataloader
-          plot_all     : (bool) if True, plot ALL images in the dataloader
-                                if False, plot only half of the images in the dataloader (if data too large)
+          max_n_imgs_to_plot : (int) maximum number of images to plot
           plot_overlay : (bool) if True, overlay the top feature map on top of the image and plot the overlaid image
                                 if False, plot the original feature map only
           normalize    : (bool) if True, normalize the mask feature map by dividing by maximum value
-          folder       : (str) name of the folder to save images (if not saving, leave it as "")
+          folder       : (str) name of the folder to save images (only if you want to save the visualizations)
           class_name   : (str) name of the class the images belong to 
         '''
 
@@ -407,7 +408,7 @@ class FeatureMapVisualizer():
                                 dataloader, 
                                 filter_idxs, 
                                 plot=True, 
-                                plot_all=False, 
+                                max_n_imgs_to_plot=100, 
                                 plot_overlay=True):
         '''
         ###  VISUALIZATION #4 :  ###
@@ -420,20 +421,16 @@ class FeatureMapVisualizer():
           dataloader   : (torch.utils.data.dataloader object) dataloader containing images to plot (usually images of a single class)
           filter_idxs  : (list of ints) index of the feature map to investigate in the layer
           plot         : (bool) if True, plot the feature maps' activation maps on images in the dataloader
-          plot_all     : (bool) if True, plot ALL images in the dataloader
-                                if False, plot only half of the images in the dataloader (if data too large)
+          max_n_imgs_to_plot : (int) maximum number of images to plot
           plot_overlay : (bool) if True, overlay the top feature map on top of the image and plot the overlaid image
                                 if False, plot the original feature map only
-          normalize    : (bool) if True, normalize the mask feature map by dividing by maximum value
-          folder       : (str) name of the folder to save images (if not saving, leave it as "")
-          class_name   : (str) name of the class the images belong to 
         '''
 
         activations = self.register_hook(layer)
         mean_activations_list = []
 
         if plot:
-            n_imgs = len(dataloader.dataset) if plot_all else int(len(dataloader.dataset)/2)
+            n_imgs = min(len(dataloader.dataset), max_n_imgs_to_plot)
             n_plots_vert, n_plots_horiz = 10, 2*(int(n_imgs/10)+1)
             plot_w, plot_h = 50, (50*n_plots_horiz/10) + 1
             plt.figure(figsize=(plot_w, plot_h))
@@ -492,12 +489,13 @@ class FeatureMapVisualizer():
       ### Visualization #5 ###
         Plot the SUM of activations of each class's top feature maps for each image, 
         for all classes in the same plot
+
         || PARAMETERS ||
           layer     : (int) if using last convolutional layer, use -2 for resnet & 12 for vgg16
           transform : (torchvision.transforms object) transform to be applied to each test image
           img_dir   : (str) address of the folder containing image folders
-                      *image folders' names must be the same as target class names 
-             /// Either pass top_feature_maps_dict OR (train_dir, classes, and n_imgs_dict). ///
+                      *Image folders' names must be the same as target class names.
+             /// You MUST either pass `top_feature_maps_dict` or ALL of `train_dir`, `classes`, and  `n_imgs_dict`. ///
           top_feature_maps_dict : (dict) (key, value)=(class name, list of top feature maps for that class)
                                   e.g. {"cat":[1,3,5], "dog":[2,4,8]}
           train_dir     : (str) address of the folder that contains training data including "/" at the end  e.g. "train_data/"
