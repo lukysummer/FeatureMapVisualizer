@@ -8,7 +8,7 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
 setup(
-    name = "FeatureMapVisaulizer",
+    name = "FeatureMapVisualizer",
     version="1.0.0",
     description = "CNN Feature Map Visualizations",
     long_description=README,
@@ -28,7 +28,7 @@ setup(
 	"Programming Language :: Python :: 3.8",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    packages = ["FeatureMapVisaulizer"],
+    packages = ["FeatureMapVisualizer"],
     include_package_data=True,
     install_requires = [
         "torch>=1.6",
