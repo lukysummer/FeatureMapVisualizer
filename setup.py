@@ -33,7 +33,7 @@ setup(
     install_requires = [
         "torch>=1.6",
     	"torchvision",
-	"cv2"
+	"opencv-python"
     ],
     keywords=[
 	"artificial intelligence",
