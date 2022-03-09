@@ -18,7 +18,8 @@ class FeatureMapVisualizer():
     def __init__(self, 
                  model,  
                  model_type="resnet", 
-                 ec=False): 
+                 ec=False,
+                 use_cuda=True): 
         '''
         ### Feature Map Visualization class:  ###
           Contains various functions for visualization methods using convolutional feature maps
@@ -33,6 +34,7 @@ class FeatureMapVisualizer():
         for p in self.model.parameters(): p.requires_grad=False
         self.model_type = model_type
         self.ec = ec
+        self.use_cuda = use_cuda
     
 
     def register_hook(self, layer):
@@ -213,7 +215,7 @@ class FeatureMapVisualizer():
         img = Image.open(img_path).convert('RGB')    
         transform = transforms.Compose([transforms.Resize((224, 224)), transforms.ToTensor()])
         img = transform(img)[:3, :, :].unsqueeze(0)    
-        img_var = torch.autograd.Variable(img.cuda(), requires_grad=True) if use_cuda else torch.autograd.Variable(img, requires_grad=True)
+        img_var = torch.autograd.Variable(img.cuda(), requires_grad=True) if self.use_cuda else torch.autograd.Variable(img, requires_grad=True)
         
         return img, img_var
 
@@ -368,7 +370,7 @@ class FeatureMapVisualizer():
         for batch_i, (img_batch, _) in enumerate(dataloader):
             if (plot is False) or (plot_all is True) or (batch_i%2 != 0):  # only do odd batch (not enough RAM)
                 b = img_batch.size(0)
-                if use_cuda:
+                if self.use_cuda:
                     img_batch = img_batch.cuda() 
                 
                 ### Pass the batch of images through the model ###
@@ -456,7 +458,7 @@ class FeatureMapVisualizer():
         for batch_i, (img, _) in enumerate(dataloader):
             if (plot is False) or (plot_all is True) or (batch_i%2 != 0):  # only do odd batch (not enough RAM)
                 b = img.size(0)
-                if use_cuda:
+                if self.use_cuda:
                     img = img.cuda() 
                 self.model(img)
                 
