@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from collections import Counter
 import cv2
+from PIL import Image, ImageFile
 
 import torch
 import torchvision
